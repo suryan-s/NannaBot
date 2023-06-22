@@ -166,8 +166,8 @@ async def on_message(message):
             # await channel.send(f"Channel created : {new_channel.name}")
 
 
-@bot.tree.command(name="discord_to_db")
-async def db_to_discord(interaction: discord.Interaction):
+# @bot.tree.command(name="discord_to_db")
+async def discord_to_db(interaction: discord.Interaction):
     """
     This function is called when the user wants to sync the details from discord to the database
     """
@@ -233,8 +233,8 @@ async def db_to_discord(interaction: discord.Interaction):
         return
 
 
-@bot.tree.command(name="db_to_discord")
-async def discord_to_db(interaction: discord.Interaction):
+# @bot.tree.command(name="db_to_discord")
+async def db_to_discord(interaction: discord.Interaction):
     """
     This function is called when the user wants to sync the details from database to discord
     """
@@ -287,6 +287,30 @@ async def discord_to_db(interaction: discord.Interaction):
             f"Error syncing database with {guild_name}"
         )
         return
+
+
+@bot.tree.command(
+    name="sync_guild",
+    description="Sync the guild details from database to discord or vice versa. Default is discord to database",
+)
+async def sync_guild(interaction: discord.Interaction, db_to_dc: bool = False):
+    """
+    This function is called when the user wants to sync the details.
+    Default is discord to database sync but
+    can be changed to a database to discord sync.
+
+    The operations are performed by separate functions based on the parameter passed:
+    db_to_discord: for database to discord sync,
+    discord_to_db: for discord to database sync.
+
+    :param interaction: The interaction object that is passed by the user
+    :param db_to_dc: True if a database to discord sync is required.
+                    False if discord to database sync is required
+    """
+    if db_to_dc:
+        await db_to_discord(interaction)
+    else:
+        await discord_to_db(interaction)
 
 
 bot.run(TOKEN)
