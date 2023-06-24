@@ -27,7 +27,7 @@ config = {
     'database': os.getenv('DB_DATABASE'),
 }
 
-connection_pool = pooling.MySQLConnectionPool(pool_name='my_pool', **config)
+connection_pool = pooling.MySQLConnectionPool(pool_name='my_pool', pool_size=32, **config)
 
 
 @bot.event
