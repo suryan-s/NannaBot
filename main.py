@@ -1,10 +1,13 @@
 """
 This is the main file for the bot operations
 """
+import asyncio
+
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 import os
+import knowledge
 from mysql.connector import pooling
 
 load_dotenv()
@@ -17,8 +20,6 @@ intents.message_content = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
-# bot.remove_command('help')
-
 config = {
     'user': os.getenv('DB_USERNAME'),
     'password': os.getenv('DB_PASSWORD'),
@@ -28,6 +29,7 @@ config = {
 }
 
 connection_pool = pooling.MySQLConnectionPool(pool_name='my_pool', pool_size=32, **config)
+chatbot = knowledge.initiate_chat()
 
 
 @bot.event
@@ -43,7 +45,8 @@ async def on_ready():
         )
     )
     try:
-        await bot.tree.sync()
+        com_sync = await bot.tree.sync()
+        print("Synced commands: ", len(com_sync))
     except Exception as e:
         print(e)
 
@@ -311,6 +314,54 @@ async def sync_guild(interaction: discord.Interaction, db_to_dc: bool = False):
         await db_to_discord(interaction)
     else:
         await discord_to_db(interaction)
+
+
+@bot.tree.command(
+    name="ask-me",
+    description="Ask me anything and if i dont know it, teach me",
+)
+async def ask_me(interaction: discord.Interaction, question: str):
+    """
+    This function is called when the user wants to ask a question to the bot.
+    :param interaction:
+    :param question:
+    :return:
+    """
+    brain = knowledge.load_knowledge()
+    global chatbot
+    try:
+        await interaction.response.defer()
+        if question is None or question == "":
+            await interaction.followup.send("No question was asked. Please ask a question")
+            return
+        question = question.lower()
+        best_match: str | None = knowledge.find_answer(question, chatbot)
+        if best_match is not None:
+            if best_match is None or best_match == "":
+                await interaction.followup.send('I dont know the answer, please teach me the answer')
+                user_response = await bot.wait_for(
+                    'message',
+                    check=lambda message: message.author == interaction.user, timeout=60
+                )
+                await interaction.followup.send(f'Thanks for teaching me the answer. I will remember it')
+                brain['questions'].append({'question': question, 'answer': user_response.content})
+                knowledge.save_knowledge(brain)
+                chatbot = knowledge.initiate_chat()
+                return
+            await interaction.followup.send(best_match)
+        else:
+            await interaction.followup.send('I dont know the answer, please teach me the answer')
+            user_response = await bot.wait_for(
+                'message',
+                check=lambda message: message.author == interaction.user, timeout=60
+            )
+            await interaction.followup.send(f'Thanks for teaching me the answer. I will remember it')
+            brain['questions'].append({'question': question, 'answer': user_response.content})
+            knowledge.save_knowledge(brain)
+            chatbot = knowledge.initiate_chat()
+    except asyncio.TimeoutError:
+        await interaction.followup.send('Sorry you took too long to answer')
+        return
 
 
 bot.run(TOKEN)
